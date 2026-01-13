@@ -6,7 +6,6 @@ import { Model as BmwModel } from './Bmw'
 import { Model as BikeModel } from './Yamaha_yzf-r3_2017'
 import { Model as NewBikeModel } from './Motorcycle'
 
-// 資料庫：移除預設的 roughness/clearcoat，改由按鈕控制，或保留作為預設值
 const BRAND_DATA = {
   doya: [
     { name: '魔幻紫 (Magic Purple)', color: '#4b0082', metalness: 0.8, iridescence: 1 },
@@ -25,11 +24,17 @@ export default function App() {
   const [mode, setMode] = useState('standard') 
   const [selectedBrand, setSelectedBrand] = useState('doya')
 
+  // 控制金屬感開關
+  const [useMetalness, setUseMetalness] = useState(false) 
+  
+  // ▼▼▼ 修改 1：新增這個狀態來記住現在是哪種光澤 (預設 gloss) ▼▼▼
+  const [finishMode, setFinishMode] = useState('gloss')
+
   const [config, setConfig] = useState({
     color: '#0066cc',
-    metalness: 0.6,
-    roughness: 0.2,      // 預設亮面
-    clearcoat: 1.0,      // 預設有金油
+    metalness: 0,
+    roughness: 0.1,      // 對應 gloss 的預設值
+    clearcoat: 1.0,      // 對應 gloss 的預設值
     clearcoatRoughness: 0.1,
     iridescence: 0
   })
@@ -38,29 +43,40 @@ export default function App() {
     setConfig(prev => ({ ...prev, [key]: value }))
   }
 
-  // ▼▼▼ 修改：套用顏色時，不一定要覆蓋光澤度，或者給一個預設值 ▼▼▼
+  const toggleMetalness = (checked) => {
+    setUseMetalness(checked)
+    if (checked) {
+      updateConfig('metalness', 0.6) 
+    } else {
+      updateConfig('metalness', 0)   
+    }
+  }
+
   const applyPreset = (preset) => {
     setConfig(prev => ({
-      ...prev, // 保留當下的光澤設定
+      ...prev,
       color: preset.color,
       metalness: preset.metalness,
       iridescence: preset.iridescence,
-      // 如果你想讓特殊色有預設光澤，可以在這裡加，但目前為了流程自由度，我們先不鎖死
     }))
   }
 
-  // ▼▼▼ 新增：金油層/光澤度 快速設定函式 ▼▼▼
+  // ▼▼▼ 修改 2：重新定義光澤數值，並更新 finishMode 狀態 ▼▼▼
   const setFinish = (type) => {
+    setFinishMode(type) // 這一行讓按鈕知道誰被選中了
+    
     switch (type) {
-      case 'matte': // 消光
-        setConfig(prev => ({ ...prev, roughness: 1.0, clearcoat: 0.0 }))
-        break
-      case 'semi':  // 半消光
+      case 'matte': // 消光 (改成你原本喜歡的半消光數值)
         setConfig(prev => ({ ...prev, roughness: 0.5, clearcoat: 0.5 }))
         break
-      case 'gloss': // 亮面
+      case 'semi':  // 半消光 (新調配：介於中間，像絲綢質感)
+        setConfig(prev => ({ ...prev, roughness: 0.3, clearcoat: 0.8 }))
+        break
+      case 'gloss': // 亮面 (維持不變)
         setConfig(prev => ({ ...prev, roughness: 0.1, clearcoat: 1.0 }))
         break
+      default:
+        break;
     }
   }
 
@@ -90,7 +106,6 @@ export default function App() {
           DROP COLOR <span style={{fontSize:'12px', color:'#888'}}>PRO</span>
         </h2>
 
-        {/* 0. 車種選擇 */}
         <div>
             <label style={{fontSize: '12px', color: '#aaa'}}>0. 選擇車款</label>
             <select 
@@ -108,12 +123,25 @@ export default function App() {
 
         <hr style={{width:'100%', borderColor:'#444', opacity:0.3}} />
 
-        {/* 模式切換 */}
         <div style={{display: 'flex', background: '#333', borderRadius: '8px', padding: '4px'}}>
-          <button onClick={() => setMode('standard')} style={{flex: 1, padding: '8px', border: 'none', background: mode === 'standard' ? '#555' : 'transparent', color: 'white', borderRadius: '6px', cursor:'pointer'}}>
+          <button 
+            onClick={() => setMode('standard')} 
+            style={{
+              flex: 1, padding: '8px', border: 'none', borderRadius: '6px', cursor:'pointer',
+              background: mode === 'standard' ? '#555' : 'transparent', // 按鈕變色邏輯
+              color: 'white'
+            }}
+          >
             一般色
           </button>
-          <button onClick={() => setMode('special')} style={{flex: 1, padding: '8px', border: 'none', background: mode === 'special' ? '#555' : 'transparent', color: 'white', borderRadius: '6px', cursor:'pointer'}}>
+          <button 
+            onClick={() => setMode('special')} 
+            style={{
+              flex: 1, padding: '8px', border: 'none', borderRadius: '6px', cursor:'pointer',
+              background: mode === 'special' ? '#555' : 'transparent', // 按鈕變色邏輯
+              color: 'white'
+            }}
+          >
             特殊色
           </button>
         </div>
@@ -121,7 +149,8 @@ export default function App() {
         {/* ============ 1. 一般色流程 ============ */}
         {mode === 'standard' && (
           <div style={{display: 'flex', flexDirection: 'column', gap: '15px'}}>
-            {/* RGB */}
+            
+            {/* 1. 基礎色 RGB */}
             <div>
               <label style={{fontSize: '12px', color: '#aaa'}}>1. 基礎色 (RGB)</label>
               <div style={{display:'flex', gap:'10px', marginTop:'5px'}}>
@@ -130,13 +159,32 @@ export default function App() {
               </div>
             </div>
 
-            {/* 珍珠粉 */}
+            {/* 2. 金屬感選配 */}
             <div>
-              <label style={{fontSize: '12px', color: '#aaa'}}>2. 珍珠粉/金屬感</label>
-              <input type="range" min="0" max="1" step="0.1" value={config.metalness} onChange={(e) => updateConfig('metalness', parseFloat(e.target.value))} style={{width: '100%', cursor: 'pointer'}} />
+              <div style={{display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '5px'}}>
+                <input 
+                  type="checkbox" 
+                  checked={useMetalness} 
+                  onChange={(e) => toggleMetalness(e.target.checked)} 
+                  style={{width:'18px', height:'18px', cursor:'pointer'}}
+                />
+                <label style={{fontSize: '14px', cursor:'pointer'}}>2. 選配：珍珠粉/金屬感</label>
+              </div>
+
+              {useMetalness && (
+                <div style={{paddingLeft: '28px'}}>
+                  <label style={{fontSize: '10px', color: '#888'}}>顆粒強度 ({Math.round(config.metalness * 100)}%)</label>
+                  <input 
+                    type="range" min="0.1" max="1" step="0.1" 
+                    value={config.metalness || 0.1} 
+                    onChange={(e) => updateConfig('metalness', parseFloat(e.target.value))} 
+                    style={{width: '100%', cursor: 'pointer'}} 
+                  />
+                </div>
+              )}
             </div>
 
-            {/* ▼▼▼ 新增：特殊漆面 (變色龍) 開關 ▼▼▼ */}
+            {/* 3. 特殊漆面 (變色龍) */}
             <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
               <input 
                 type="checkbox" 
@@ -144,7 +192,7 @@ export default function App() {
                 onChange={(e) => updateConfig('iridescence', e.target.checked ? 1 : 0)} 
                 style={{width:'18px', height:'18px', cursor:'pointer'}}
               />
-              <label style={{fontSize: '14px', cursor:'pointer'}}>3. 增加特殊漆面 (幻彩)</label>
+              <label style={{fontSize: '14px', cursor:'pointer'}}>3. 選配：特殊漆面 (幻彩)</label>
             </div>
           </div>
         )}
@@ -152,7 +200,6 @@ export default function App() {
         {/* ============ 2. 特殊色流程 ============ */}
         {mode === 'special' && (
           <div style={{display: 'flex', flexDirection: 'column', gap: '15px'}}>
-            {/* 品牌 */}
             <div>
               <label style={{fontSize: '12px', color: '#aaa'}}>1. 選擇品牌</label>
               <select value={selectedBrand} onChange={(e) => setSelectedBrand(e.target.value)} style={{width: '100%', padding: '8px', marginTop: '5px', background: '#333', color: 'white', border: '1px solid #555', borderRadius: '4px'}}>
@@ -160,8 +207,6 @@ export default function App() {
                 <option value="aika">艾卡塗料 (Aika)</option>
               </select>
             </div>
-
-            {/* 色號 */}
             <div style={{display: 'flex', flexDirection: 'column', gap: '8px'}}>
               <label style={{fontSize: '12px', color: '#aaa'}}>2. 選擇色號</label>
               <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px'}}>
@@ -182,19 +227,47 @@ export default function App() {
         <hr style={{width:'100%', borderColor:'#444', opacity:0.3}} />
 
         {/* ============ 共用流程：金油層選擇 ============ */}
-        {/* ▼▼▼ 修改：無論是一般色還是特殊色，最後都可以在這裡調整光澤 ▼▼▼ */}
+        {/* ▼▼▼ 修改 3：按鈕樣式現在會檢查 finishMode，選中的才會變藍色 ▼▼▼ */}
         <div>
           <label style={{fontSize: '12px', color: '#aaa'}}>最後步驟：選擇金油層 (光澤度)</label>
           <div style={{display: 'flex', gap: '5px', marginTop: '8px'}}>
-            <button onClick={() => setFinish('matte')} style={{flex:1, padding:'10px', background:'#333', border:'1px solid #555', color:'white', borderRadius:'4px', cursor:'pointer', fontSize:'12px'}}>
+            
+            <button 
+              onClick={() => setFinish('matte')} 
+              style={{
+                flex:1, padding:'10px', border:'none', borderRadius:'4px', cursor:'pointer', fontSize:'12px',
+                background: finishMode === 'matte' ? '#0066cc' : '#333', // 判斷變色
+                color: 'white', fontWeight: finishMode === 'matte' ? 'bold' : 'normal',
+                border: finishMode === 'matte' ? 'none' : '1px solid #555'
+              }}
+            >
               消光<br/>(Matte)
             </button>
-            <button onClick={() => setFinish('semi')} style={{flex:1, padding:'10px', background:'#333', border:'1px solid #555', color:'white', borderRadius:'4px', cursor:'pointer', fontSize:'12px'}}>
-              半消光<br/>(Semi)
+
+            <button 
+              onClick={() => setFinish('semi')} 
+              style={{
+                flex:1, padding:'10px', border:'none', borderRadius:'4px', cursor:'pointer', fontSize:'12px',
+                background: finishMode === 'semi' ? '#0066cc' : '#333', // 判斷變色
+                color: 'white', fontWeight: finishMode === 'semi' ? 'bold' : 'normal',
+                border: finishMode === 'semi' ? 'none' : '1px solid #555'
+              }}
+            >
+              半消光<br/>(Satin)
             </button>
-            <button onClick={() => setFinish('gloss')} style={{flex:1, padding:'10px', background:'#0066cc', border:'none', color:'white', borderRadius:'4px', cursor:'pointer', fontSize:'12px', fontWeight:'bold'}}>
+
+            <button 
+              onClick={() => setFinish('gloss')} 
+              style={{
+                flex:1, padding:'10px', border:'none', borderRadius:'4px', cursor:'pointer', fontSize:'12px',
+                background: finishMode === 'gloss' ? '#0066cc' : '#333', // 判斷變色
+                color: 'white', fontWeight: finishMode === 'gloss' ? 'bold' : 'normal',
+                border: finishMode === 'gloss' ? 'none' : '1px solid #555'
+              }}
+            >
               亮面<br/>(Gloss)
             </button>
+
           </div>
         </div>
 

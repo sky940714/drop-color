@@ -2,9 +2,9 @@ import React, { useState, Suspense } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { OrbitControls, Stage } from '@react-three/drei'
 
-import { Model as BmwModel } from './Bmw'
-import { Model as BikeModel } from './Yamaha_yzf-r3_2017'
-import { Model as NewBikeModel } from './Motorcycle'
+import { Model as BmwModel } from './components/Bmw'
+import { Model as BikeModel } from './components/Yamaha_yzf-r3_2017'
+import { Model as NewBikeModel } from './components/Motorcycle'
 
 const BRAND_DATA = {
   doya: [
@@ -270,7 +270,6 @@ export default function App() {
 
           </div>
         </div>
-
       </div>
     </div>
   )

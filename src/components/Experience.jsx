@@ -1,6 +1,7 @@
+// src/components/Experience.jsx
+
 import React, { useRef, useEffect } from 'react'
-import { Stage, CameraControls, PerspectiveCamera } from '@react-three/drei'
-import * as THREE from 'three'
+import { CameraControls, Environment, ContactShadows } from '@react-three/drei' // 引入 Environment 和 ContactShadows
 
 import { Model as BmwModel } from './Bmw'
 import { Model as BikeModel } from './Yamaha_yzf-r3_2017'
@@ -13,46 +14,51 @@ export const Experience = ({ vehicle, config, phase }) => {
     if (!cameraControlRef.current) return
 
     if (phase === 'showroom') {
-      // 1. 車庫模式：鏡頭拉遠，自動旋轉
+      // 1. 車庫模式
       cameraControlRef.current.setLookAt(
-        0, 2, 12, // 鏡頭位置 (遠處)
-        0, 1, 0,  // 觀察目標 (中心)
-        true      // 是否平滑過渡
+        0, 2, 12, 
+        0, 1, 0,  
+        true      
       )
-      cameraControlRef.current.rotate(Math.PI / 4, 0, true) // 稍微轉個角度
+      // 稍微重置角度，避免繼承怪異的旋轉
+      cameraControlRef.current.rotate(Math.PI / 4, 0, true) 
       
     } else if (phase === 'configurator') {
-      // 2. 配置模式：閃電進場！(0.5秒內衝到面前)
-      // setLookAt(eyeX, eyeY, eyeZ, targetX, targetY, targetZ, enableTransition)
-      
-      // 先瞬間重置一下避免旋轉慣性
+      // 2. 配置模式
       cameraControlRef.current.reset(true)
-
       cameraControlRef.current.setLookAt(
-        4, 1, 5,  // 鏡頭衝到這裡 (車子斜前方)
-        0, 0, 0,  // 看向車子中心
-        true      // 開啟過渡動畫
+        4, 1, 5,  
+        0, 0, 0,  
+        true      
       )
     }
-  }, [phase, vehicle]) // 當階段或車種改變時觸發
+  }, [phase, vehicle]) 
 
   return (
     <>
-      {/* 這裡設定攝影棚燈光 */}
-      <Stage environment="city" intensity={0.5} contactShadow={true}>
+      {/* ▼▼▼ 1. 移除 <Stage>，改用手動環境設定 ▼▼▼ */}
+      
+      {/* 環境光與貼圖 */}
+      <Environment preset="city" />
+      <ambientLight intensity={0.5} />
+      
+      {/* 地板陰影 (讓車子看起來有落地感) */}
+      <ContactShadows position={[0, -0.01, 0]} opacity={0.6} scale={10} blur={2} far={1} />
+
+      {/* ▼▼▼ 2. 直接渲染車輛 (不包在 Stage 裡) ▼▼▼ */}
+      <group position={[0, 0, 0]}>
         {vehicle === 'bmw' && <BmwModel config={config} />}
         {vehicle === 'bike' && <BikeModel config={config} />}
         {vehicle === 'newBike' && <NewBikeModel config={config} />}
-      </Stage>
+      </group>
 
-      {/* 取代 OrbitControls，改用更強大的 CameraControls */}
+      {/* 鏡頭控制器 */}
       <CameraControls 
         ref={cameraControlRef} 
         minPolarAngle={0} 
         maxPolarAngle={Math.PI / 2} 
-        // 在車庫模式時稍微限制使用者不要亂動，配置模式時才給操作
         enabled={phase === 'configurator'}
-        smoothTime={0.5} // 0.5秒的極速運鏡 (閃電感)
+        smoothTime={0.5}
       />
     </>
   )

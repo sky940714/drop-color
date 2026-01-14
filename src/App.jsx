@@ -1,35 +1,24 @@
-import React, { useState, Suspense, useEffect } from 'react'
+// 1. 這裡補上 Suspense
+import React, { useState, useEffect, Suspense } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { Experience } from './components/Experience'
 import { Interface } from './components/Interface'
 import { Showroom } from './components/Showroom'
 import { LoadingScreen } from './components/LoadingScreen'
-import { BRAND_DATA } from './data/brands' // 如果你已經分開了 data
 
 export default function App() {
   // === 核心狀態 ===
-  // phase: 'loading' -> 'showroom' -> 'configurator'
-  const [phase, setPhase] = useState('showroom') 
+  const [phase, setPhase] = useState('showroom')
   const [vehicle, setVehicle] = useState('newBike')
-  
-  // 閃光特效狀態
   const [flash, setFlash] = useState(false)
 
-  // 當從 showroom 切換到 configurator 時，觸發閃光
-  useEffect(() => {
-    if (phase === 'configurator') {
-      setFlash(true)
-      const timer = setTimeout(() => setFlash(false), 300) // 閃光持續 0.3 秒
-      return () => clearTimeout(timer)
-    }
-  }, [phase])
-
-  // ... 這裡保留原本的 Config 狀態與函式 (updateConfig, setFinish 等) ...
-  // (為了版面整潔，我省略了 config, mode 等狀態的定義，請把上次的邏輯貼回來)
-  const [mode, setMode] = useState('standard') 
+  // === 配色與材質狀態 ===
+  const [mode, setMode] = useState('standard')
   const [selectedBrand, setSelectedBrand] = useState('doya')
-  const [useMetalness, setUseMetalness] = useState(false) 
+  const [useMetalness, setUseMetalness] = useState(false)
   const [finishMode, setFinishMode] = useState('gloss')
+  
+  // 核心材質參數
   const [config, setConfig] = useState({
     color: '#0066cc',
     metalness: 0,
@@ -37,64 +26,80 @@ export default function App() {
     clearcoat: 1.0,
     clearcoatRoughness: 0.1,
     iridescence: 0,
-    iridescenceIOR: 1.5,                 // 新增
-    iridescenceThicknessRange: [100, 400] // 新增
+    iridescenceIOR: 1.5,
+    iridescenceThicknessRange: [100, 400]
   })
-  
+
+  // === 轉場特效邏輯 ===
+  useEffect(() => {
+    if (phase === 'configurator') {
+      setFlash(true)
+      const timer = setTimeout(() => setFlash(false), 300)
+      return () => clearTimeout(timer)
+    }
+  }, [phase])
+
+  // === 工具函式 ===
   const updateConfig = (key, value) => {
     setConfig(prev => ({ ...prev, [key]: value }))
   }
+
   const toggleMetalness = (checked) => {
     setUseMetalness(checked)
-    if (checked) { updateConfig('metalness', 0.6) } 
-    else { updateConfig('metalness', 0) }
+    updateConfig('metalness', checked ? 0.6 : 0)
   }
+
   const applyPreset = (preset) => {
-    setConfig(prev => ({ 
-      ...prev, 
-      color: preset.color, 
-      metalness: preset.metalness, 
+    setConfig(prev => ({
+      ...prev,
+      color: preset.color,
+      metalness: preset.metalness,
       iridescence: preset.iridescence,
-      // ▼ 新增這幾行，確保能切換到 A-01 的特效 ▼
       roughness: preset.roughness ?? prev.roughness,
       iridescenceIOR: preset.iridescenceIOR ?? prev.iridescenceIOR,
       iridescenceThicknessRange: preset.iridescenceThicknessRange ?? prev.iridescenceThicknessRange
     }))
   }
+
   const setFinish = (type) => {
     setFinishMode(type)
-    switch (type) {
-      case 'matte': setConfig(prev => ({ ...prev, roughness: 0.5, clearcoat: 0.5 })); break
-      case 'semi': setConfig(prev => ({ ...prev, roughness: 0.3, clearcoat: 0.8 })); break
-      case 'gloss': setConfig(prev => ({ ...prev, roughness: 0.1, clearcoat: 1.0 })); break
+    const settings = {
+      matte: { roughness: 0.5, clearcoat: 0.5 },
+      semi: { roughness: 0.3, clearcoat: 0.8 },
+      gloss: { roughness: 0.1, clearcoat: 1.0 }
+    }
+    if (settings[type]) {
+      setConfig(prev => ({ ...prev, ...settings[type] }))
     }
   }
 
   return (
     <div style={{ position: 'relative', width: '100vw', height: '100vh', background: '#111', overflow: 'hidden' }}>
       
-      {/* 1. 讀取畫面 (最上層) */}
+      {/* 1. 讀取畫面 */}
       <LoadingScreen />
 
-      {/* 2. 閃光特效層 */}
+      {/* 2. 轉場白光特效 */}
       <div style={{
         position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
         background: 'white', zIndex: 50, pointerEvents: 'none',
         opacity: flash ? 1 : 0, transition: 'opacity 0.3s ease-out'
       }} />
 
-      {/* 3. 車庫大廳 (選單) */}
+      {/* 3. 選單大廳 */}
       {phase === 'showroom' && (
         <Showroom setVehicle={setVehicle} setPhase={setPhase} />
       )}
 
       {/* 4. 3D 場景 */}
-      <Canvas shadows camera={{ position: [0, 0, 0], fov: 45 }}>
-        {/* 把 phase 傳進去，讓 Experience 控制運鏡 */}
-        <Experience vehicle={vehicle} config={config} phase={phase} />
+      <Canvas shadows camera={{ position: [0, 0, 0], fov: 45, near: 0.01, far: 200 }}>
+        {/* ▼▼▼ 重點：加上 Suspense，不然讀取圖片時會報錯 ▼▼▼ */}
+        <Suspense fallback={null}>
+           <Experience vehicle={vehicle} config={config} phase={phase} />
+        </Suspense>
       </Canvas>
 
-      {/* 5. 配置 UI (只有進入配置模式才顯示) */}
+      {/* 5. 配色介面 */}
       {phase === 'configurator' && (
         <>
           <Interface 
@@ -106,7 +111,7 @@ export default function App() {
             finishMode={finishMode} setFinish={setFinish}
             applyPreset={applyPreset}
           />
-          {/* 加一個返回按鈕 */}
+          
           <button 
             onClick={() => setPhase('showroom')}
             style={{

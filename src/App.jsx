@@ -36,7 +36,9 @@ export default function App() {
     roughness: 0.1,
     clearcoat: 1.0,
     clearcoatRoughness: 0.1,
-    iridescence: 0
+    iridescence: 0,
+    iridescenceIOR: 1.5,                 // 新增
+    iridescenceThicknessRange: [100, 400] // 新增
   })
   
   const updateConfig = (key, value) => {
@@ -48,7 +50,16 @@ export default function App() {
     else { updateConfig('metalness', 0) }
   }
   const applyPreset = (preset) => {
-    setConfig(prev => ({ ...prev, color: preset.color, metalness: preset.metalness, iridescence: preset.iridescence }))
+    setConfig(prev => ({ 
+      ...prev, 
+      color: preset.color, 
+      metalness: preset.metalness, 
+      iridescence: preset.iridescence,
+      // ▼ 新增這幾行，確保能切換到 A-01 的特效 ▼
+      roughness: preset.roughness ?? prev.roughness,
+      iridescenceIOR: preset.iridescenceIOR ?? prev.iridescenceIOR,
+      iridescenceThicknessRange: preset.iridescenceThicknessRange ?? prev.iridescenceThicknessRange
+    }))
   }
   const setFinish = (type) => {
     setFinishMode(type)

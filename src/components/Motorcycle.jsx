@@ -17,7 +17,11 @@ export function Model({ config, ...props }) {
       roughness={config?.roughness ?? 0.2}
       clearcoat={config?.clearcoat ?? 1.0}
       clearcoatRoughness={config?.clearcoatRoughness ?? 0.1}
+      // ▼▼▼ 新增這三行：啟動變色龍物理運算 ▼▼▼
       iridescence={config?.iridescence ?? 0}
+      iridescenceIOR={config?.iridescenceIOR ?? 1.5}
+      iridescenceThicknessRange={config?.iridescenceThicknessRange ?? [100, 400]}
+      // ▲▲▲ 修改結束 ▲▲▲
       envMapIntensity={1.5}
     />
   )
